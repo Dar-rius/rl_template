@@ -59,15 +59,3 @@ class TrainConfig:
     def __post_init__(self) -> None:
         self.model_path = f"{self.model_saved_path}/{self.model_name}.pt"
         self.num_update = self.timestamp // self.rollout_steps
-
-
-@dataclass
-class WandbConfig:
-    """Weights & Biases logging configuration.
-
-    Attributes:
-        name: Display name for the W&B run.
-        logs: Metric name-to-value pairs logged to W&B.
-    """
-    name: str
-    logs: dict[str, float] = field(default_factory=dict)
