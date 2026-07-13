@@ -166,8 +166,7 @@ train = TrainConfig(
 - Python >= 3.11
 - PyTorch >= 2.0
 - NumPy >= 1.24
-- Gymnasium (for environment integration)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](https://github.com/Dar-rius/rl_template/blob/main/LICENSE) for details.
