@@ -1,23 +1,44 @@
+"""Abstract training loop for RL agents.
+
+Provides BaseTrain, which orchestrates the rollout-update cycle:
+collect experience, compute GAE, run PPO, and repeat.
+"""
+
 import os
 import torch
 import numpy as np
-from env import BaseEnv
-from agent import BaseAgent
-from algorithms.ppo.ppo import PPOTrainer
-from common import Buffer
-from config import TrainConfig
+from .env import BaseEnv
+from .agent import BaseAgent
+from .algorithms.ppo.ppo import PPOTrainer
+from .common import Buffer
+from .config import TrainConfig
 from abc import ABC, abstractmethod
-from errors import EmptyBufferError
+from .errors import EmptyBufferError
 
 
 class BaseTrain(ABC):
+    """Abstract training loop coordinating agent, environment, and PPO.
 
-    def __init__(self, 
+    Subclasses must implement rollout_phase(), update_weights(), and
+    save_model(). The provided implementations are template methods;
+    subclasses may override or call super() to reuse them.
+    """
+
+    def __init__(self,
                  agent: BaseAgent,
                  env: BaseEnv,
                  buffer: Buffer,
                  train_config: TrainConfig,
                  ppo_trainer: PPOTrainer):
+        """Initialize the training loop.
+
+        Args:
+            agent: Neural network policy to train.
+            env: Environment to collect experience from.
+            buffer: Pre-allocated buffer for rollout data.
+            train_config: Training configuration (device, paths, hyperparams).
+            ppo_trainer: PPO trainer handling GAE and weight updates.
+        """
         super().__init__()
         self.agent = agent
         self.env = env
@@ -29,17 +50,24 @@ class BaseTrain(ABC):
         self.require_buffer_size = 10
 
 
-    #Rollout phase
-    @abstractmethod
     def rollout_phase(self, state: np.ndarray):
+        """Collect experience by running the agent in the environment.
+
+        Stores each transition in the buffer and resets on episode end.
+        After the rollout, computes the bootstrap value for GAE.
+
+        Args:
+            state: Initial observation to start the rollout from.
+        """
         for _ in range(self.train_config.rollout_steps):
             with torch.inference_mode():
-                action_t, log_prob, _, value = self.agent.get_action()
+                action_t, log_prob, _, value = self.agent.get_action(state)
 
+            # Convention: truncate = terminated (episode naturally ended)
+            #             done = truncated (episode cut short by time limit)
             next_state, reward, truncate, done, _ = self.env.step(action_t)
             done_casted = 1 if done else 0
 
-            #Insert data in buffer and variables
             self.buffer.insert(
                 state=state,
                 action=action_t.item(),
@@ -48,45 +76,52 @@ class BaseTrain(ABC):
                 value=value,
                 dones=done_casted,
             )
-            #Update the historic
             self.cumulative_reward += reward
 
             if done or truncate:
                 state = self.env.reset()
             else:
                 state = next_state
-        #Collect the last critric value
+
         with torch.inference_mode():
             _, _, _, next_value = self.agent.get_action(state)
         self.last_value = next_value.item()
 
 
-    @abstractmethod
-    def update_weights(self, step:int):
+    def update_weights(self, step: int):
+        """Compute GAE and update agent weights via PPO.
+
+        Args:
+            step: Current training step (used for learning rate decay).
+
+        Raises:
+            EmptyBufferError: If the buffer has fewer entries than
+                             require_buffer_size.
+        """
         if self.buffer.size < self.require_buffer_size:
             raise EmptyBufferError(self.buffer.size, self.require_buffer_size)
+
         rewards_list = self.buffer.rewards
         values_list = self.buffer.values
         dones_list = self.buffer.dones
-        #Calcul the GAE
+
         with torch.inference_mode():
             returns, adv, _ = self.ppo_trainer.compute_gae(rewards_list,
-                                                         values_list,
-                                                         self.last_value,
-                                                         dones_list)
+                                                          values_list,
+                                                          self.last_value,
+                                                          dones_list)
             self.buffer.insert_returns(returns, adv)
-        
-        #Update the weights
-        (loss, policy_loss, value_loss,
-         belief_loss, change_loss, entropy) = self.ppo_trainer.update(self.buffer,
-                                                                      self.train_config.timestamp,
-                                                                      step,
-                                                                      self.train_config.batch_size)
+
+        loss, policy_loss, value_loss, entropy = self.ppo_trainer.update(
+            self.buffer,
+            self.train_config.timestamp,
+            step,
+            self.train_config.batch_size
+        )
         self.buffer.clear()
 
 
-    @abstractmethod
     def save_model(self):
-        if not os.path.exists(self.train_config.model_path):
-            os.makedirs(self.train_config.model_path)
+        """Save agent weights to the path in train_config.model_path."""
+        os.makedirs(os.path.dirname(self.train_config.model_path), exist_ok=True)
         torch.save(self.agent.state_dict(), self.train_config.model_path)
