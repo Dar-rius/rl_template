@@ -4,8 +4,6 @@
 
 # rl-template
 
-A type-safe, algorithm-agnostic reinforcement learning framework built on PyTorch and Gymnasium.
-
 ## What is rl-template?
 
 `rl-template` provides a structured foundation for building and training reinforcement learning agents. Instead of writing boilerplate code for training loops, rollouts, and PPO optimization, you extend the provided abstract base classes and focus on defining your agent and environment.
