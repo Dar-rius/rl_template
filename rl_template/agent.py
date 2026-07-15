@@ -4,11 +4,11 @@ Provides BaseAgent, an ABC + nn.Module hybrid that enforces a consistent
 policy/value interface for all RL agent implementations.
 """
 
-import numpy as np
 import torch.nn as nn
 from torch.distributions import Distribution
 from torch import Tensor
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class BaseAgent(ABC, nn.Module):
@@ -22,8 +22,9 @@ class BaseAgent(ABC, nn.Module):
     def __init__(self):
         super().__init__()
 
+
     @abstractmethod
-    def forward(self, state: np.ndarray) -> tuple[Tensor, Tensor]:
+    def forward(self, state: Tensor, **kwargs: Any) -> tuple[Tensor, Tensor]:
         """Compute raw policy logits and value estimate.
 
         Args:
@@ -35,7 +36,7 @@ class BaseAgent(ABC, nn.Module):
         pass
 
     @abstractmethod
-    def get_distribution(self, state: np.ndarray) -> tuple[Distribution, Tensor]:
+    def get_distribution(self, state: Tensor, **kwargs: Any) -> tuple[Distribution, Tensor]:
         """Build a distribution over actions for the given state.
 
         Args:
@@ -47,7 +48,7 @@ class BaseAgent(ABC, nn.Module):
         """
         pass
 
-    def get_action(self, state: np.ndarray, action: int | None = None) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    def get_action(self, state: Tensor, action: Tensor | None = None, **kwargs: Any) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Sample or evaluate an action under the current policy.
 
         Template method: calls get_distribution(), then samples if no

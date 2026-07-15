@@ -51,7 +51,7 @@ class TrainConfig:
     model_saved_path: str
     device: str = "cuda:0" if torch.cuda.is_available() else "cpu"
     model_path: str = field(init=False)
-    timestamp: int = 6_000_000
+    timestamp: int = 1_000_000
     batch_size: int = 64
     rollout_steps: int = 2048
     num_update: int = field(init=False)

@@ -109,16 +109,16 @@ env.close()
 
 ## What's Included
 
-| Component | Description |
-|-----------|-------------|
-| `BaseAgent` | Abstract agent (ABC + nn.Module). Implement `forward()` and `get_distribution()`. The `get_action()` template method handles sampling, log-probability, entropy, and value estimation. |
-| `BaseEnv` | Abstract Gymnasium v1 environment wrapper. Implement `reset()`, `step()`, and `close()`. |
-| `BaseTrain` | Training loop orchestrator. Handles rollout collection, GAE computation, PPO updates, and model saving. |
-| `Buffer` | Pre-allocated NumPy rollout buffer with bounds checking, size tracking, and tensor conversion for PPO. |
-| `PPOTrainer` | PPO algorithm with GAE, clipped surrogate loss, value loss, entropy bonus, linear LR decay, and gradient clipping (max norm 1.0). |
-| `PPOConfig` | Frozen (immutable) PPO hyperparameters: `lr`, `gamma`, `gae_lambda`, `clip_eps`, `ent_coef`, `value_coef`. |
-| `TrainConfig` | Training settings with auto-computed `model_path` and `num_update`. Automatically detects CUDA. |
-| `WandbConfig` | Weights & Biases logging configuration. |
+| Component     | Description                                                                                                                                                                            |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BaseAgent`   | Abstract agent (ABC + nn.Module). Implement `forward()` and `get_distribution()`. The `get_action()` template method handles sampling, log-probability, entropy, and value estimation. |
+| `BaseEnv`     | Abstract Gymnasium v1 environment wrapper. Implement `reset()`, `step()`, and `close()`.                                                                                               |
+| `BaseTrain`   | Training loop orchestrator. Handles rollout collection, GAE computation, PPO updates, and model saving.                                                                                |
+| `Buffer`      | Pre-allocated NumPy rollout buffer with bounds checking, size tracking, and tensor conversion for PPO.                                                                                 |
+| `PPOTrainer`  | PPO algorithm with GAE, clipped surrogate loss, value loss, entropy bonus, linear LR decay, and gradient clipping (max norm 1.0).                                                      |
+| `PPOConfig`   | Frozen (immutable) PPO hyperparameters: `lr`, `gamma`, `gae_lambda`, `clip_eps`, `ent_coef`, `value_coef`.                                                                             |
+| `TrainConfig` | Training settings with auto-computed `model_path` and `num_update`. Automatically detects CUDA.                                                                                        |
+| `WandbConfig` | Weights & Biases logging configuration.                                                                                                                                                |
 
 ## PPO Algorithm Details
 
@@ -162,6 +162,7 @@ train = TrainConfig(
 - Python >= 3.11
 - PyTorch >= 2.0
 - NumPy >= 1.24
+- Gymnasium
 
 ## License
 

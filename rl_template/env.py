@@ -4,13 +4,14 @@ Provides BaseEnv, a Gymnasium v1 API wrapper that all environment
 implementations must extend.
 """
 
+import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 from abc import ABC, abstractmethod
 from typing import Any
 
 
-class BaseEnv(ABC):
+class BaseEnv(ABC, gym.Env):
     """Abstract base class for all RL environments.
 
     Follows the Gymnasium v1 API where step() returns 5 values:
@@ -21,6 +22,7 @@ class BaseEnv(ABC):
     def __init__(self):
         self.observation_space: spaces.Space = None
         self.action_space: spaces.Space = None
+
 
     @abstractmethod
     def reset(self, seed: int | None = None) -> tuple[np.ndarray, dict[str, Any]]:

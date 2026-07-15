@@ -8,9 +8,10 @@ Reference: Schulman et al., "Proximal Policy Optimization Algorithms" (2017)
 
 import torch
 import torch.nn as nn
-from torch import optim
 import numpy as np
+from torch import optim
 from ...common import Buffer
+from config import PPOConfig
 
 
 class PPOTrainer:
@@ -30,21 +31,12 @@ class PPOTrainer:
 
     def __init__(self,
                  model: nn.Module,
-                 lr: float = 3e-4,
-                 gamma: float = 0.99,
-                 gae_lambda: float = 0.95,
-                 clip_eps: float = 0.2,
-                 value_coef: float = 0.5,
-                 ent_coef: float = 0.01):
+                 ppo_config: PPOConfig,
+                 ):
        
         self.model = model
-        self.lr = lr
-        self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
-        self.gamma = gamma
-        self.gae_lambda = gae_lambda
-        self.clip_eps = clip_eps
-        self.value_coef = value_coef
-        self.ent_coef = ent_coef
+        self.ppo_config = ppo_config
+        self.optimizer = optim.Adam(model.parameters(), lr=self.ppo_config.lr)
         self.mse_loss = nn.MSELoss()
 
     def compute_gae(self,
@@ -73,10 +65,10 @@ class PPOTrainer:
         total_size = rewards.shape[0]
         advantages = np.zeros_like(rewards)
 
-        delta = rewards + self.gamma * next_values * mask - values
+        delta = rewards + self.ppo_config.gamma * next_values * mask - values
 
         for step in reversed(range(total_size)):
-            gae = delta[step] + self.gamma * self.gae_lambda * mask[step] * gae
+            gae = delta[step] + self.ppo_config.gamma * self.ppo_config.gae_lambda * mask[step] * self.ppo_config.gae
             advantages[step] = gae
 
         returns = advantages + values
@@ -113,7 +105,7 @@ class PPOTrainer:
             Tuple of (total_loss, policy_loss, value_loss, entropy),
             each averaged over all minibatch updates.
         """
-        self.lr_decay(self.lr, total_steps, step)
+        self.lr_decay(self.ppo_config.lr, total_steps, step)
 
         states, actions, old_log_probs, returns, adv, _, _, _ = memory.get_all()
 
@@ -151,8 +143,8 @@ class PPOTrainer:
 
                 idx_adv = advantages[idx].flatten()
                 surr1 = ratio * idx_adv
-                surr2 = torch.clamp(ratio, 1.0 - self.clip_eps,
-                                    1.0 + self.clip_eps) * idx_adv
+                surr2 = torch.clamp(ratio, 1.0 - self.ppo_config.clip_eps,
+                                    1.0 + self.ppo_config.clip_eps) * idx_adv
 
                 policy_loss = -torch.min(surr1, surr2).mean()
 
@@ -161,8 +153,8 @@ class PPOTrainer:
                 entropy_loss = dist_entropy.mean()
 
                 loss = policy_loss + \
-                        (self.value_coef * value_loss) + \
-                        (self.ent_coef * entropy_loss)
+                        (self.ppo_config.value_coef * value_loss) + \
+                        (self.ppo_config.ent_coef * entropy_loss)
 
                 self.optimizer.zero_grad(set_to_none=True)
                 loss.backward()
