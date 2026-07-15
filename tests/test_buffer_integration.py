@@ -5,7 +5,6 @@ shape combinations, clear/refill reuse, and GAE data flow.
 """
 
 import numpy as np
-import torch
 import pytest
 
 from rl_template.common import Buffer

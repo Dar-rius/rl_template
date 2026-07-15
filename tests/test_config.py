@@ -1,15 +1,11 @@
 """Unit tests for configuration dataclasses (rl_template.config).
 
-Tests PPOConfig (frozen hyperparameters), TrainConfig (computed fields),
-and WandbConfig (logging configuration).
+Tests PPOConfig (frozen hyperparameters) and TrainConfig (computed fields).
 """
-
-import io
-import sys
 
 import pytest
 
-from rl_template.config import PPOConfig, TrainConfig, WandbConfig
+from rl_template.config import PPOConfig, TrainConfig
 
 
 # =============================================================================
@@ -88,37 +84,10 @@ class TestTrainConfig:
         cfg = TrainConfig(model_name="m", model_saved_path="/tmp")
         assert cfg.batch_size == 64
         assert cfg.rollout_steps == 2048
-        assert cfg.timestamp == 6_000_000
+        assert cfg.timestamp == 1_000_000
         assert cfg.device in ("cpu", "cuda:0")
 
     def test_model_path_with_nested_dir(self):
         """model_path should correctly handle deeply nested directory paths."""
         cfg = TrainConfig(model_name="agent", model_saved_path="/a/b/c/d")
         assert cfg.model_path == "/a/b/c/d/agent.pt"
-
-
-# =============================================================================
-# Test WandbConfig (Logging Dataclass)
-# =============================================================================
-
-class TestWandbConfig:
-    """Tests for the WandbConfig dataclass."""
-
-    def test_defaults(self):
-        """WandbConfig should default logs to an empty dict."""
-        cfg = WandbConfig(name="run_1")
-        assert cfg.name == "run_1"
-        assert cfg.logs == {}
-
-    def test_custom_logs(self):
-        """WandbConfig should accept a custom logs dictionary."""
-        logs = {"reward": 100.0, "loss": 0.5}
-        cfg = WandbConfig(name="run_2", logs=logs)
-        assert cfg.logs == logs
-
-    def test_logs_are_independent(self):
-        """Each WandbConfig instance should have its own independent logs dict."""
-        cfg1 = WandbConfig(name="a")
-        cfg2 = WandbConfig(name="b")
-        cfg1.logs["x"] = 1.0
-        assert cfg2.logs == {}

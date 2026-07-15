@@ -12,8 +12,9 @@ from .agent import BaseAgent
 from .algorithms.ppo.ppo import PPOTrainer
 from .common import Buffer
 from .config import TrainConfig
-from abc import ABC, abstractmethod
+from abc import ABC
 from .errors import EmptyBufferError
+from torch import Tensor
 
 
 class BaseTrain(ABC):
@@ -88,7 +89,7 @@ class BaseTrain(ABC):
         self.last_value = next_value.item()
 
 
-    def update_weights(self, step: int):
+    def update_weights(self, step: int) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Compute GAE and update agent weights via PPO.
 
         Args:
@@ -112,13 +113,14 @@ class BaseTrain(ABC):
                                                           dones_list)
             self.buffer.insert_returns(returns, adv)
 
-        loss, policy_loss, value_loss, entropy = self.ppo_trainer.update(
+        loss, policy_loss, value_loss, entropy_loss = self.ppo_trainer.update(
             self.buffer,
             self.train_config.timestamp,
             step,
             self.train_config.batch_size
         )
         self.buffer.clear()
+        return (loss, policy_loss, value_loss, entropy_loss)
 
 
     def save_model(self):

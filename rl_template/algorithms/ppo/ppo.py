@@ -2,7 +2,6 @@
 
 Provides PPOTrainer, which computes GAE advantages and runs the clipped
 surrogate loss optimization with linear learning rate decay.
-
 Reference: Schulman et al., "Proximal Policy Optimization Algorithms" (2017)
 """
 
@@ -11,7 +10,7 @@ import torch.nn as nn
 import numpy as np
 from torch import optim
 from ...common import Buffer
-from config import PPOConfig
+from ...config import PPOConfig
 
 
 class PPOTrainer:
@@ -68,7 +67,7 @@ class PPOTrainer:
         delta = rewards + self.ppo_config.gamma * next_values * mask - values
 
         for step in reversed(range(total_size)):
-            gae = delta[step] + self.ppo_config.gamma * self.ppo_config.gae_lambda * mask[step] * self.ppo_config.gae
+            gae = delta[step] + self.ppo_config.gamma * self.ppo_config.gae_lambda * mask[step] * gae
             advantages[step] = gae
 
         returns = advantages + values

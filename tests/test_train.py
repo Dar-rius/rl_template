@@ -82,7 +82,7 @@ class TestBaseTrainInit:
         env = MockEnv(obs_dim)
         buf = Buffer(step=10, state_shape=(obs_dim,))
         cfg = TrainConfig(model_name="test", model_saved_path=str(tmp_path))
-        ppo = PPOTrainer(agent)
+        ppo = PPOTrainer(agent, PPOConfig())
 
         trainer = SimpleTrain(agent, env, buf, cfg, ppo)
         assert trainer.agent is agent
@@ -96,7 +96,7 @@ class TestBaseTrainInit:
         env = MockEnv()
         buf = Buffer(step=10, state_shape=(4,))
         cfg = TrainConfig(model_name="test", model_saved_path=str(tmp_path))
-        ppo = PPOTrainer(agent)
+        ppo = PPOTrainer(agent, PPOConfig())
 
         trainer = SimpleTrain(agent, env, buf, cfg, ppo)
         assert trainer.last_value == 0.0
@@ -106,7 +106,7 @@ class TestBaseTrainInit:
         env = MockEnv()
         buf = Buffer(step=10, state_shape=(4,))
         cfg = TrainConfig(model_name="test", model_saved_path=str(tmp_path))
-        ppo = PPOTrainer(agent)
+        ppo = PPOTrainer(agent, PPOConfig())
 
         trainer = SimpleTrain(agent, env, buf, cfg, ppo)
         assert trainer.cumulative_reward == 0.0
@@ -120,7 +120,7 @@ class TestBaseTrainUpdateWeights:
         env = MockEnv()
         buf = Buffer(step=10, state_shape=(4,))
         cfg = TrainConfig(model_name="test", model_saved_path=str(tmp_path))
-        ppo = PPOTrainer(agent)
+        ppo = PPOTrainer(agent, PPOConfig())
 
         trainer = SimpleTrain(agent, env, buf, cfg, ppo)
         with pytest.raises(EmptyBufferError):
@@ -136,7 +136,7 @@ class TestBaseTrainSaveModel:
         buf = Buffer(step=10, state_shape=(4,))
         save_dir = str(tmp_path / "models")
         cfg = TrainConfig(model_name="test", model_saved_path=save_dir)
-        ppo = PPOTrainer(agent)
+        ppo = PPOTrainer(agent, PPOConfig())
 
         trainer = SimpleTrain(agent, env, buf, cfg, ppo)
         trainer.save_model()
@@ -148,7 +148,7 @@ class TestBaseTrainSaveModel:
         buf = Buffer(step=10, state_shape=(4,))
         save_dir = str(tmp_path / "models")
         cfg = TrainConfig(model_name="test", model_saved_path=save_dir)
-        ppo = PPOTrainer(agent)
+        ppo = PPOTrainer(agent, PPOConfig())
 
         trainer = SimpleTrain(agent, env, buf, cfg, ppo)
         trainer.save_model()

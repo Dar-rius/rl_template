@@ -7,10 +7,10 @@ action distributions (Gaussian/Normal) instead of discrete (Categorical).
 import numpy as np
 import torch
 import torch.nn as nn
-import pytest
 
 from rl_template.algorithms.ppo.ppo import PPOTrainer
 from rl_template.common import Buffer
+from rl_template.config import PPOConfig
 
 
 # =============================================================================
@@ -186,7 +186,7 @@ class TestPPOContinuousUpdate:
     def test_update_with_continuous_actions(self):
         """PPO update() should complete without errors with continuous actions."""
         model = ContinuousTestModel(obs_dim=4, act_dim=2)
-        trainer = PPOTrainer(model, lr=3e-4)
+        trainer = PPOTrainer(model, PPOConfig(lr=3e-4))
         buf = Buffer(step=128, state_shape=(4,), action_shape=(2,))
         self._fill_buffer_with_continuous_data(buf, model, obs_dim=4)
         buf.insert_returns(np.random.randn(128).astype(np.float32), np.random.randn(128).astype(np.float32))
@@ -201,7 +201,7 @@ class TestPPOContinuousUpdate:
         """PPO should generally reduce loss when trained on fixed data."""
         torch.manual_seed(42)
         model = ContinuousTestModel(obs_dim=4, act_dim=2)
-        trainer = PPOTrainer(model, lr=1e-3)
+        trainer = PPOTrainer(model, PPOConfig(lr=1e-3))
         buf = Buffer(step=256, state_shape=(4,), action_shape=(2,))
         self._fill_buffer_with_continuous_data(buf, model, obs_dim=4)
         returns = np.ones(256, dtype=np.float32) * 10.0
@@ -216,7 +216,7 @@ class TestPPOContinuousUpdate:
     def test_gradient_flows_through_continuous_policy(self):
         """Verify gradients actually update the continuous policy parameters."""
         model = ContinuousTestModel(obs_dim=4, act_dim=2)
-        trainer = PPOTrainer(model, lr=1e-3)
+        trainer = PPOTrainer(model, PPOConfig(lr=1e-3))
         buf = Buffer(step=64, state_shape=(4,), action_shape=(2,))
         self._fill_buffer_with_continuous_data(buf, model, obs_dim=4)
         buf.insert_returns(np.random.randn(64).astype(np.float32), np.random.randn(64).astype(np.float32))
@@ -228,7 +228,7 @@ class TestPPOContinuousUpdate:
     def test_continuous_buffer_full_cycle(self):
         """Full cycle: fill buffer -> compute GAE -> insert returns -> PPO update."""
         model = ContinuousTestModel(obs_dim=8, act_dim=3)
-        trainer = PPOTrainer(model, lr=3e-4)
+        trainer = PPOTrainer(model, PPOConfig(lr=3e-4))
         buf = Buffer(step=128, state_shape=(8,), action_shape=(3,))
         for _ in range(128):
             state = torch.randn(8)
@@ -255,7 +255,7 @@ class TestPPOContinuousUpdate:
         """PPO should work with high-dimensional continuous action spaces."""
         act_dim = 17
         model = ContinuousTestModel(obs_dim=8, act_dim=act_dim)
-        trainer = PPOTrainer(model, lr=3e-4)
+        trainer = PPOTrainer(model, PPOConfig(lr=3e-4))
         buf = Buffer(step=64, state_shape=(8,), action_shape=(act_dim,))
         for _ in range(64):
             state = torch.randn(8)
@@ -278,7 +278,7 @@ class TestPPOContinuousUpdate:
     def test_single_dim_continuous_action(self):
         """PPO should work with 1D continuous actions (scalar action)."""
         model = ContinuousTestModel(obs_dim=4, act_dim=1)
-        trainer = PPOTrainer(model, lr=3e-4)
+        trainer = PPOTrainer(model, PPOConfig(lr=3e-4))
         buf = Buffer(step=64, state_shape=(4,), action_shape=(1,))
         for _ in range(64):
             state = torch.randn(4)

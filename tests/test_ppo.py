@@ -10,7 +10,7 @@ import torch.nn as nn
 import pytest
 
 from rl_template.algorithms.ppo.ppo import PPOTrainer
-from rl_template.common import Buffer
+from rl_template.config import PPOConfig
 
 
 # =============================================================================
@@ -62,42 +62,42 @@ class TestPPOTrainerInit:
     def test_stores_hyperparams(self):
         """All constructor arguments should be stored as instance attributes."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, lr=1e-3, gamma=0.95, gae_lambda=0.8, clip_eps=0.2, value_coef=1.0, ent_coef=0.05)
-        assert trainer.lr == 1e-3
-        assert trainer.gamma == 0.95
-        assert trainer.gae_lambda == 0.8
-        assert trainer.clip_eps == 0.2
-        assert trainer.value_coef == 1.0
-        assert trainer.ent_coef == 0.05
+        trainer = PPOTrainer(model, PPOConfig(lr=1e-3, gamma=0.95, gae_lambda=0.8, clip_eps=0.2, value_coef=1.0, ent_coef=0.05))
+        assert trainer.ppo_config.lr == 1e-3
+        assert trainer.ppo_config.gamma == 0.95
+        assert trainer.ppo_config.gae_lambda == 0.8
+        assert trainer.ppo_config.clip_eps == 0.2
+        assert trainer.ppo_config.value_coef == 1.0
+        assert trainer.ppo_config.ent_coef == 0.05
 
     def test_stores_model(self):
         """The trainer should hold a reference to the model (not a copy)."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model)
+        trainer = PPOTrainer(model, PPOConfig())
         assert trainer.model is model
 
     def test_creates_optimizer(self):
         """An Adam optimizer should be created with the specified learning rate."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, lr=5e-4)
+        trainer = PPOTrainer(model, PPOConfig(lr=5e-4))
         assert len(trainer.optimizer.param_groups) == 1
         assert trainer.optimizer.param_groups[0]["lr"] == 5e-4
 
     def test_default_hyperparams(self):
-        """Default values should match the PPO paper recommendations."""
+        """Default values should match the PPOConfig defaults."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model)
-        assert trainer.lr == 3e-4
-        assert trainer.gamma == 0.99
-        assert trainer.gae_lambda == 0.95
-        assert trainer.clip_eps == 0.2
-        assert trainer.value_coef == 0.5
-        assert trainer.ent_coef == 0.01
+        trainer = PPOTrainer(model, PPOConfig())
+        assert trainer.ppo_config.lr == 3e-5
+        assert trainer.ppo_config.gamma == 0.999
+        assert trainer.ppo_config.gae_lambda == 0.95
+        assert trainer.ppo_config.clip_eps == 0.1
+        assert trainer.ppo_config.value_coef == 0.5
+        assert trainer.ppo_config.ent_coef == 0.01
 
     def test_mse_loss_exists(self):
         """The trainer should have an MSELoss instance for value function loss."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model)
+        trainer = PPOTrainer(model, PPOConfig())
         assert isinstance(trainer.mse_loss, nn.MSELoss)
 
 
@@ -111,7 +111,7 @@ class TestComputeGAE:
     def test_returns_equals_advantages_plus_values(self):
         """By definition: returns = advantages + values (always true)."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model)
+        trainer = PPOTrainer(model, PPOConfig())
         rewards = np.array([1.0, 2.0, 3.0])
         values = np.array([0.5, 0.5, 0.5])
         dones = np.array([0.0, 0.0, 0.0])
@@ -126,7 +126,7 @@ class TestComputeGAE:
         Expected: delta = 1.0, gae = 1.0
         """
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, gamma=0.99, gae_lambda=0.95)
+        trainer = PPOTrainer(model, PPOConfig(gamma=0.99, gae_lambda=0.95))
         rewards = np.array([1.0])
         values = np.array([0.0])
         dones = np.array([0.0])
@@ -145,7 +145,7 @@ class TestComputeGAE:
         Expected: gae_1 = 1.0, gae_0 = 1.0 + gamma*lambda = 1.9405
         """
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, gamma=0.99, gae_lambda=0.95)
+        trainer = PPOTrainer(model, PPOConfig(gamma=0.99, gae_lambda=0.95))
         rewards = np.array([1.0, 1.0])
         values = np.array([0.0, 0.0])
         dones = np.array([0.0, 0.0])
@@ -163,7 +163,7 @@ class TestComputeGAE:
         Both advantages should be 1.0 independently (no accumulation across done).
         """
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, gamma=0.99, gae_lambda=0.95)
+        trainer = PPOTrainer(model, PPOConfig(gamma=0.99, gae_lambda=0.95))
         rewards = np.array([1.0, 1.0])
         values = np.array([0.0, 0.0])
         dones = np.array([1.0, 0.0])
@@ -175,7 +175,7 @@ class TestComputeGAE:
     def test_output_shapes(self):
         """All output arrays should have the same shape as the input rewards."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model)
+        trainer = PPOTrainer(model, PPOConfig())
         n = 10
         rewards = np.ones(n)
         values = np.zeros(n)
@@ -188,7 +188,7 @@ class TestComputeGAE:
     def test_with_nonzero_values(self):
         """GAE should work correctly with non-zero value estimates."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, gamma=0.99, gae_lambda=0.95)
+        trainer = PPOTrainer(model, PPOConfig(gamma=0.99, gae_lambda=0.95))
         rewards = np.array([5.0, 3.0, 2.0])
         values = np.array([1.0, 2.0, 3.0])
         dones = np.array([0.0, 0.0, 0.0])
@@ -211,21 +211,21 @@ class TestLRDecay:
     def test_step_zero_no_change(self):
         """At step=0, the learning rate should remain unchanged."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, lr=0.01)
+        trainer = PPOTrainer(model, PPOConfig(lr=0.01))
         trainer.lr_decay(lr=0.01, total_steps=1000, step=0)
         assert trainer.optimizer.param_groups[0]["lr"] == pytest.approx(0.01)
 
     def test_step_half(self):
         """At step=total_steps/2, the learning rate should be halved."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, lr=0.01)
+        trainer = PPOTrainer(model, PPOConfig(lr=0.01))
         trainer.lr_decay(lr=0.01, total_steps=1000, step=500)
         assert trainer.optimizer.param_groups[0]["lr"] == pytest.approx(0.005)
 
     def test_final_step_near_zero(self):
         """At step=total_steps-1, the learning rate should be near zero."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, lr=0.01)
+        trainer = PPOTrainer(model, PPOConfig(lr=0.01))
         trainer.lr_decay(lr=0.01, total_steps=1000, step=999)
         expected = 0.01 * (1.0 - 999 / 1000)
         assert trainer.optimizer.param_groups[0]["lr"] == pytest.approx(expected)
@@ -233,14 +233,14 @@ class TestLRDecay:
     def test_lr_zero_at_end(self):
         """At step=total_steps, the learning rate should be exactly zero."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, lr=0.01)
+        trainer = PPOTrainer(model, PPOConfig(lr=0.01))
         trainer.lr_decay(lr=0.01, total_steps=1000, step=1000)
         assert trainer.optimizer.param_groups[0]["lr"] == pytest.approx(0.0)
 
     def test_updates_all_param_groups(self):
         """lr_decay should update ALL param groups, not just the first."""
         model = SimpleTestModel()
-        trainer = PPOTrainer(model, lr=0.01)
+        trainer = PPOTrainer(model, PPOConfig(lr=0.01))
         trainer.optimizer.add_param_group({"params": [torch.zeros(1, requires_grad=True)], "lr": 0.02})
         trainer.lr_decay(lr=0.01, total_steps=100, step=50)
         for pg in trainer.optimizer.param_groups:

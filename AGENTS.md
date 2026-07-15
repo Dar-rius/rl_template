@@ -2,7 +2,7 @@
 
 ## Project
 
-RL training template built on PyTorch + Gymnasium. Provides abstract base classes (`BaseAgent`, `BaseEnv`, `BaseTrain`) and a concrete PPO (Proximal Policy Optimization) implementation. Includes a full test suite (107 tests, all passing).
+RL training template built on PyTorch + Gymnasium. Provides abstract base classes (`BaseAgent`, `BaseEnv`, `BaseTrain`) and a concrete PPO (Proximal Policy Optimization) implementation. Includes a full test suite (104 tests, all passing).
 
 ## Package management
 
@@ -21,7 +21,7 @@ No pre-commit hooks, no CI, no formatter config beyond ruff defaults.
 ## Import style gotcha
 
 - `train.py` uses **relative imports** (`from .env import BaseEnv`) — requires package-level import
-- `ppo.py` uses **relative imports** (`from ...common import Buffer`) — assumes package-level import
+- `ppo.py` uses **relative imports** (`from ...common import Buffer`, `from ...config import PPOConfig`) — assumes package-level import
 - `algorithms/__init__.py` and `algorithms/ppo/__init__.py` exist (empty) — required for relative imports in `ppo.py` to resolve
 
 ## Structure
@@ -33,7 +33,7 @@ rl_template/
   env.py                 # BaseEnv (ABC) — Gymnasium v1 API wrapper interface
   train.py               # BaseTrain (ABC) — rollout/update/save training loop
   common.py              # Buffer — pre-allocated numpy rollout buffer with size property
-  config.py              # PPOConfig (frozen), TrainConfig, WandbConfig dataclasses
+  config.py              # PPOConfig (frozen), TrainConfig dataclasses
   errors.py              # EmptyBufferError with detailed __str__
   algorithms/
     __init__.py          # package marker (empty)
@@ -43,10 +43,10 @@ rl_template/
 tests/
   __init__.py
   test_common.py         # Buffer unit tests (21 tests)
-  test_config.py         # Config dataclass tests (13 tests)
+  test_config.py         # Config dataclass tests (10 tests)
   test_errors.py         # EmptyBufferError tests (7 tests)
-  test_ppo.py            # PPOTrainer tests (12 tests)
-  test_buffer_integration.py  # Buffer integration tests (10 tests)
+  test_ppo.py            # PPOTrainer tests (16 tests)
+  test_buffer_integration.py  # Buffer integration tests (6 tests)
   test_agent.py         # BaseAgent abstract interface tests (12 tests)
   test_env.py           # BaseEnv abstract interface tests (11 tests)
   test_train.py         # BaseTrain tests: init, save_model, update_weights (6 tests)
@@ -63,7 +63,7 @@ tests/
 ## Testing
 
 ```
-python -m pytest tests/ -v    # run all 107 tests
+python -m pytest tests/ -v    # run all 104 tests
 ```
 
 ## Fixes applied
@@ -79,4 +79,13 @@ python -m pytest tests/ -v    # run all 107 tests
 - Fixed `Buffer.get_all()` actions dtype from `torch.long` to `torch.float32` (continuous actions were silently truncated to integers)
 - Fixed `Distributions` → `Distribution` import typo in `agent.py` (pre-existing bug, class is singular in PyTorch)
 - Changed `train.py` from bare imports to relative imports for package-level compatibility
+- Changed `ppo.py` from `from config import PPOConfig` to `from ...config import PPOConfig` for relative import consistency
 - Rewrote all docstrings and comments across source and test files for consistency
+- Refactored `PPOTrainer` constructor to accept `PPOConfig` dataclass instead of individual hyperparameter kwargs
+- Removed `WandbConfig` dataclass from `config.py`; config module now only exports `PPOConfig` and `TrainConfig`
+- Fixed `compute_gae()` to use local `gae` accumulator instead of non-existent `self.ppo_config.gae`
+- Updated `PPOConfig` defaults to `lr=3e-5`, `gamma=0.999`, `gae_lambda=0.95`, `clip_eps=0.1`
+- Updated all test files to wrap `PPOTrainer` parameters in `PPOConfig(...)`; removed `WandbConfig` tests from `test_config.py`
+- Removed unused `import torch` from `tests/test_buffer_integration.py`
+- Removed unused `import pytest` from `tests/test_continuous_actions.py`
+- Removed unused `from rl_template.common import Buffer` from `tests/test_ppo.py`
