@@ -30,7 +30,7 @@ class ContinuousTestModel(nn.Module):
         self.log_std = nn.Parameter(torch.zeros(act_dim))
         self.value = nn.Linear(obs_dim, 1)
 
-    def get_distribution(self, state: torch.Tensor):
+    def get_distribution(self, state: torch.Tensor, **kwargs):
         """Build a Normal distribution from the policy output.
 
         Args:
@@ -45,7 +45,7 @@ class ContinuousTestModel(nn.Module):
         dist = torch.distributions.Normal(action_mean, action_std)
         return dist, self.value(state).squeeze(-1)
 
-    def get_action(self, state, action=None):
+    def get_action(self, state, action=None, **kwargs):
         """Sample or evaluate an action under the Gaussian policy.
 
         log_prob and entropy are summed across action dimensions.

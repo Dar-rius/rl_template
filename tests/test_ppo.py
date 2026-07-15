@@ -29,10 +29,10 @@ class SimpleTestModel(nn.Module):
         self.policy = nn.Linear(obs_dim, act_dim)
         self.value = nn.Linear(obs_dim, 1)
 
-    def forward(self, state):
+    def forward(self, state, **kwargs):
         return self.policy(state), self.value(state)
 
-    def get_action(self, state, action=None):
+    def get_action(self, state, action=None, **kwargs):
         """Sample or evaluate an action under the Categorical policy.
 
         Args:

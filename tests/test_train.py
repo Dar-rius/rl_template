@@ -21,16 +21,16 @@ class MockAgent(nn.Module):
         self.linear = nn.Linear(obs_dim, act_dim)
         self.val = nn.Linear(obs_dim, 1)
 
-    def forward(self, state):
+    def forward(self, state, **kwargs):
         state_t = torch.as_tensor(state, dtype=torch.float32)
         return self.linear(state_t), self.val(state_t)
 
-    def get_distribution(self, state):
+    def get_distribution(self, state, **kwargs):
         logits, value = self.forward(state)
         dist = torch.distributions.Categorical(logits=logits)
         return dist, value.squeeze(-1)
 
-    def get_action(self, state, action=None):
+    def get_action(self, state, action=None, **kwargs):
         dist, value = self.get_distribution(state)
         if action is None:
             action = dist.sample()
