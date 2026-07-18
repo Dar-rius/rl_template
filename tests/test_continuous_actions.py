@@ -90,7 +90,7 @@ class TestContinuousBuffer:
         for i in range(5):
             action = np.array([float(i), float(i) * -0.5])
             buf.insert(state=np.ones(4) * i, action=action, old_log_prob=float(i), reward=float(i), value=float(i), dones=0)
-        states, actions, _, _, _, _, _, _ = buf.get_all()
+        states, actions, _, _, _, _, _, _, _ = buf.get_all()
         assert actions.shape == (5, 2)
         assert actions.dtype == torch.float32
         np.testing.assert_array_almost_equal(actions[2].numpy(), [2.0, -1.0])
@@ -100,7 +100,7 @@ class TestContinuousBuffer:
         buf = Buffer(step=5, state_shape=(4,), action_shape=(1,))
         for i in range(5):
             buf.insert(state=np.ones(4), action=np.array([float(i) * 0.1]), old_log_prob=0.0, reward=0.0, value=0.0, dones=0)
-        _, actions, _, _, _, _, _, _ = buf.get_all()
+        _, actions, _, _, _, _, _, _, _ = buf.get_all()
         assert actions.shape == (5, 1)
         assert actions.dtype == torch.float32
 

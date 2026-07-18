@@ -41,10 +41,10 @@ class BaseTrain:
             ppo_trainer: PPO trainer handling GAE and weight updates.
         """
         super().__init__()
-        self.agent = agent
+        self.train_config = train_config
+        self.agent = agent.to(self.train_config.device)
         self.env = env
         self.buffer = buffer
-        self.train_config = train_config
         self.ppo_trainer = ppo_trainer
         self.last_value = 0.0
         self.cumulative_reward = 0.0
@@ -64,15 +64,16 @@ class BaseTrain:
             state_tensor = torch.tensor(state, dtype=torch.float32, device=self.train_config.device)
             with torch.inference_mode():
                 action_t, log_prob, _, value = self.agent.get_action(state_tensor)
+                action_np = action_t.cpu().numpy()
 
             # Convention: truncate = terminated (episode naturally ended)
             #             done = truncated (episode cut short by time limit)
-            next_state, reward, truncate, done, _ = self.env.step(action_t.cpu().numpy())
+            next_state, reward, truncate, done, _ = self.env.step(action_np)
             done_casted = 1 if done else 0
 
             self.buffer.insert(
                 state=state,
-                action=action_t,
+                action=action_np,
                 old_log_prob=log_prob.cpu().item(),
                 reward=reward,
                 value=value.cpu().item(),
@@ -115,10 +116,11 @@ class BaseTrain:
             self.buffer.insert_returns(returns, adv)
 
         loss, policy_loss, value_loss, entropy_loss = self.ppo_trainer.update(
-            self.buffer,
-            self.train_config.timestamp,
-            step,
-            self.train_config.batch_size
+                memory = self.buffer,
+                total_steps =self.train_config.timestamp,
+                step =step,
+                batch_size = self.train_config.batch_size,
+                device=self.train_config.device
         )
         self.buffer.clear()
         return (loss, policy_loss, value_loss, entropy_loss)

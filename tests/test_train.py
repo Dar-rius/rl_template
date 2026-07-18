@@ -1,11 +1,11 @@
 """Unit tests for BaseTrain (rl_template.train)."""
 
 import os
-import numpy as np
 import torch
 import torch.nn as nn
 import pytest
 
+from gymnasium import spaces
 from rl_template.agent import BaseAgent
 from rl_template.env import BaseEnv
 from rl_template.train import BaseTrain
@@ -34,22 +34,21 @@ class MockAgent(BaseAgent):
 class MockEnv(BaseEnv):
     """Minimal environment for testing BaseTrain."""
 
-    def __init__(self, obs_dim=4):
-        self.obs_dim = obs_dim
-        self._step_count = 0
+    def __init__(self):
+        super().__init__()
+        self.observation_space = spaces.Box(-4.8, 4.8, shape=(4,))
+        self.action_space = spaces.Discrete(2)
+        self._env = __import__("gymnasium").make("CartPole-v1")
 
     def reset(self, seed=None):
-        self._step_count = 0
-        return np.zeros(self.obs_dim, dtype=np.float32), {}
+        return self._env.reset(seed=seed)
 
     def step(self, action):
-        self._step_count += 1
-        obs = np.ones(self.obs_dim, dtype=np.float32)
-        done = self._step_count >= 10
-        return obs, 1.0, done, False, {}
+        return self._env.step(action)
 
     def close(self):
-        pass
+        self._env.close()
+
 
 class TestBaseTrainInit:
     """Verify BaseTrain stores all dependencies."""
@@ -57,7 +56,7 @@ class TestBaseTrainInit:
     def test_stores_attributes(self, tmp_path):
         obs_dim, act_dim = 4, 2
         agent = MockAgent(obs_dim, act_dim)
-        env = MockEnv(obs_dim)
+        env = MockEnv()
         buf = Buffer(step=10, state_shape=(obs_dim,))
         cfg = TrainConfig(model_name="test", model_saved_path=str(tmp_path))
         ppo = PPOTrainer(agent, PPOConfig())
@@ -108,12 +107,12 @@ class TestBaseTrainUpdateWeights:
     def test_real(self, tmp_path):
         agent = MockAgent()
         env = MockEnv()
-        buf = Buffer(step=10, state_shape=(4,))
+        buf = Buffer(step=2048, state_shape=(4,))
         cfg = TrainConfig(device="cpu", model_name="test", model_saved_path=str(tmp_path))
         ppo = PPOTrainer(agent, PPOConfig())
         trainer = BaseTrain(agent, env, buf, cfg, ppo, 1)
-        state, _ = env.reset()
-        for step in range(10):
+        for step in range(5):
+            state, _ = env.reset()
             trainer.rollout_phase(state)
             trainer.update_weights(step)
         env.close()
@@ -146,8 +145,10 @@ class TestBaseTrainSaveModel:
         trainer.save_model()
 
         new_agent = MockAgent()
+        agent.to("cpu")
         state_dict = torch.load(cfg.model_path, weights_only=True)
         new_agent.load_state_dict(state_dict)
+        print(agent.device)
+        print(new_agent.device)
         for p1, p2 in zip(agent.parameters(), new_agent.parameters()):
             assert torch.allclose(p1, p2)
-

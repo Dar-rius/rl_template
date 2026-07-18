@@ -4,6 +4,7 @@ Provides BaseAgent, an ABC + nn.Module hybrid that enforces a consistent
 policy/value interface for all RL agent implementations.
 """
 
+import torch
 import torch.nn as nn
 from torch.distributions import Distribution
 from torch import Tensor
@@ -11,7 +12,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-class BaseAgent(ABC, nn.Module):
+class BaseAgent(nn.Module, ABC):
     """Abstract base class for all RL agents.
 
     Subclasses must implement forward() and get_distribution(). The
@@ -22,6 +23,13 @@ class BaseAgent(ABC, nn.Module):
     def __init__(self):
         super().__init__()
 
+    @property
+    def device(self) -> torch.device:
+        """Return the device where it run."""
+        try:
+            return next(self.parameters()).device
+        except StopIteration:
+            return torch.device("cpu")
 
     @abstractmethod
     def forward(self, state: Tensor, **kwargs: Any) -> tuple[Tensor, Tensor]:

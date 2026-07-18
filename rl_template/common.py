@@ -118,16 +118,16 @@ class Buffer:
             advantages, rewards, values, dones). States are float32,
             dones are long (integer), everything else is float32.
         """
-        core_tensor = (torch.as_tensor(self.states, dtype=torch.float32, device=device),
-                torch.as_tensor(self.actions, dtype=torch.float32, device=device),
+        core_tensor = (torch.as_tensor(self.states[:self.slice], dtype=torch.float32, device=device),
+                torch.as_tensor(self.actions[:self.slice], dtype=torch.float32, device=device),
                 torch.as_tensor(self.old_log_probs[:self.slice], dtype=torch.float32, device=device),
-                torch.as_tensor(self.returns, dtype=torch.float32, device=device),
-                torch.as_tensor(self.adv, dtype=torch.float32, device=device),
-                torch.as_tensor(self.rewards, dtype=torch.float32, device=device),
-                torch.as_tensor(self.values, dtype=torch.float32, device=device),
-                torch.as_tensor(self.dones, dtype=torch.long, device=device))
+                torch.as_tensor(self.returns[:self.slice], dtype=torch.float32, device=device),
+                torch.as_tensor(self.adv[:self.slice], dtype=torch.float32, device=device),
+                torch.as_tensor(self.rewards[:self.slice], dtype=torch.float32, device=device),
+                torch.as_tensor(self.values[:self.slice], dtype=torch.float32, device=device),
+                torch.as_tensor(self.dones[:self.slice], dtype=torch.long, device=device))
         extra_tensor = {
-                name: torch.as_tensor(val, dtype=torch.float32, device=device)
+                name: torch.as_tensor(val[:self.slice], dtype=torch.float32, device=device)
                 for name, val in self.extras.items()
                 }
         return *core_tensor, extra_tensor

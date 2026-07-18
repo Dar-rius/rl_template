@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-class BaseEnv(ABC, gym.Env):
+class BaseEnv(gym.Env, ABC):
     """Abstract base class for all RL environments.
 
     Follows the Gymnasium v1 API where step() returns 5 values:

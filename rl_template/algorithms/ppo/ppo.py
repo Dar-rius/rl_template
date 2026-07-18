@@ -87,7 +87,7 @@ class PPOTrainer:
             param_group["lr"] = current_lr
 
     def update(self, memory: Buffer, total_steps: int, step: int,
-               batch_size: int = 64, epochs: int = 10) -> tuple:
+               batch_size: int = 64, epochs: int = 10, device:str="cpu") -> tuple:
         """Run a PPO update on collected rollout data.
 
         Normalizes advantages and returns, then runs multiple epochs of
@@ -106,32 +106,34 @@ class PPOTrainer:
         """
         self.lr_decay(self.ppo_config.lr, total_steps, step)
 
-        states, actions, old_log_probs, returns, adv, _, _, _, _ = memory.get_all()
+        states, actions, old_log_probs, returns, adv, _, _, _, _ = memory.get_all(device)
 
         advantages = (adv - adv.mean()) / (adv.std() + 1e-8)
         returns = (returns - returns.mean()) / (returns.std() + 1e-8)
 
         dataset_size = actions.size(0)
-        num_batch = dataset_size // batch_size
+        num_batches_per_epoch = (dataset_size + batch_size - 1) // batch_size
+        size_total = num_batches_per_epoch * epochs
 
-        size_total = int((dataset_size / batch_size) * epochs)
-        epoch_losses = torch.zeros((size_total), dtype=torch.float32)
-        epoch_pi_losses = torch.zeros((size_total))
-        epoch_v_losses = torch.zeros((size_total))
-        epoch_entropies = torch.zeros((size_total))
+        #Create storage
+        epoch_losses = torch.zeros((size_total), dtype=torch.float32, device=device)
+        epoch_pi_losses = torch.zeros((size_total), dtype=torch.float32, device=device)
+        epoch_v_losses = torch.zeros((size_total), dtype=torch.float32, device=device)
+        epoch_entropies = torch.zeros((size_total), dtype=torch.float32, device=device)
         index_loss = 0
 
-        batch_rollout = torch.arange(0, dataset_size, batch_size)
-
         for _ in range(epochs):
-            shuffle_index = batch_rollout[torch.randperm(num_batch)]
+            shuffle_index = torch.randperm(dataset_size, device=device)
 
-            for start in shuffle_index:
+            for start in range(0, dataset_size, batch_size):
                 end = start + batch_size
-                idx = torch.arange(start, end)
+                idx = shuffle_index[start:end]
                 if idx.numel() == 0:
                     continue  # Skip empty batches
 
+                idx_adv = advantages[idx].view(-1)
+                idx_return = returns[idx].view(-1)
+                
                 _, new_log_probs, dist_entropy, new_values = self.model.get_action(
                     states[idx],
                     actions[idx]
@@ -140,19 +142,18 @@ class PPOTrainer:
                 logratio = new_log_probs - old_log_probs[idx]
                 ratio = torch.exp(logratio)
 
-                idx_adv = advantages[idx].flatten()
                 surr1 = ratio * idx_adv
                 surr2 = torch.clamp(ratio, 1.0 - self.ppo_config.clip_eps,
                                     1.0 + self.ppo_config.clip_eps) * idx_adv
 
                 policy_loss = -torch.min(surr1, surr2).mean()
 
-                value_loss = self.mse_loss(new_values.flatten(), returns[idx].flatten())
+                value_loss = self.mse_loss(new_values.view(-1), idx_return)
 
                 entropy_loss = dist_entropy.mean()
 
                 loss = policy_loss + \
-                        (self.ppo_config.value_coef * value_loss) + \
+                        (self.ppo_config.value_coef * value_loss) - \
                         (self.ppo_config.ent_coef * entropy_loss)
 
                 self.optimizer.zero_grad(set_to_none=True)
