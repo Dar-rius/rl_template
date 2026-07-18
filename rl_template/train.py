@@ -73,9 +73,9 @@ class BaseTrain:
             self.buffer.insert(
                 state=state,
                 action=action_t,
-                old_log_prob=log_prob,
+                old_log_prob=log_prob.cpu().numpy(),
                 reward=reward,
-                value=value,
+                value=value.cpu().numpy(),
                 dones=done_casted,
             )
             self.cumulative_reward += reward
