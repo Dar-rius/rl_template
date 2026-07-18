@@ -63,7 +63,7 @@ class Buffer:
     def insert(self,
                state: np.ndarray,
                action: int | float | np.ndarray,
-               old_log_prob: float | np.ndarray,
+               old_log_prob: float,
                reward: float,
                value: float,
                dones: int,
