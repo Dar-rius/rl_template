@@ -24,8 +24,7 @@ class MockAgent(BaseAgent):
         self.val = nn.Linear(obs_dim, 1)
 
     def forward(self, state, **kwargs):
-        state_t = torch.as_tensor(state, dtype=torch.float32)
-        return self.linear(state_t), self.val(state_t)
+        return self.linear(state), self.val(state)
 
     def get_distribution(self, state, **kwargs):
         logits, value = self.forward(state)
@@ -106,6 +105,19 @@ class TestBaseTrainUpdateWeights:
         with pytest.raises(EmptyBufferError):
             trainer.update_weights(step=0)
 
+    def test_real(self, tmp_path):
+        agent = MockAgent()
+        env = MockEnv()
+        buf = Buffer(step=10, state_shape=(4,))
+        cfg = TrainConfig(device="cpu", model_name="test", model_saved_path=str(tmp_path))
+        ppo = PPOTrainer(agent, PPOConfig())
+        trainer = BaseTrain(agent, env, buf, cfg, ppo, 1)
+        state, _ = env.reset()
+        for step in range(10):
+            trainer.rollout_phase(state)
+            trainer.update_weights(step)
+        env.close()
+
 
 class TestBaseTrainSaveModel:
     """Verify save_model() writes weights to disk."""
@@ -138,3 +150,4 @@ class TestBaseTrainSaveModel:
         new_agent.load_state_dict(state_dict)
         for p1, p2 in zip(agent.parameters(), new_agent.parameters()):
             assert torch.allclose(p1, p2)
+

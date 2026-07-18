@@ -29,7 +29,8 @@ class BaseTrain:
                  env: BaseEnv,
                  buffer: Buffer,
                  train_config: TrainConfig,
-                 ppo_trainer: PPOTrainer):
+                 ppo_trainer: PPOTrainer,
+                 require_buffer_size: int = 10):
         """Initialize the training loop.
 
         Args:
@@ -47,7 +48,7 @@ class BaseTrain:
         self.ppo_trainer = ppo_trainer
         self.last_value = 0.0
         self.cumulative_reward = 0.0
-        self.require_buffer_size = 10
+        self.require_buffer_size = require_buffer_size
 
 
     def rollout_phase(self, state: np.ndarray):
@@ -78,15 +79,14 @@ class BaseTrain:
                 dones=done_casted,
             )
             self.cumulative_reward += reward
-
-            if done or truncate:
-                state = self.env.reset()
-                break
-            
             state = next_state
 
+            if done or truncate:
+                break
+
         with torch.inference_mode():
-            _, _, _, next_value = self.agent.get_action(state)
+            state_tensor = torch.tensor(state, dtype=torch.float32, device=self.train_config.device)
+            _, _, _, next_value = self.agent.get_action(state_tensor)
         self.last_value = next_value.item()
 
 
