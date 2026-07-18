@@ -1,6 +1,6 @@
 [project]
 name = "rl-template"
-version = "0.1.2"
+version = "0.1.21"
 description = "A type-safe, algorithm-agnostic Reinforcement Learning framework"
 readme = "README.md"
 requires-python = ">=3.11"
