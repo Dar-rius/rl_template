@@ -26,7 +26,11 @@ class Buffer:
         buf.clear()
     """
 
-    def __init__(self, step: int, state_shape: tuple, action_shape: tuple = ()):
+    def __init__(self, 
+                 step: int,
+                 state_shape: tuple,
+                 action_shape: tuple = (),
+                 extra_shapes: dict[str, tuple] = {}):
         """Initialize pre-allocated arrays.
 
         Args:
@@ -37,14 +41,19 @@ class Buffer:
         """
         self.step = step
         self.slice: int = 0
-        self.states = np.zeros((step, *state_shape), dtype=np.float32)
-        self.actions = np.zeros((step, *action_shape), dtype=np.float32)
+        self.states = np.zeros((self.step, *state_shape), dtype=np.float32)
+        self.actions = np.zeros((self.step, *action_shape), dtype=np.float32)
         self.old_log_probs = np.zeros(self.step, dtype=np.float32)
         self.returns = np.zeros(self.step, dtype=np.float32)
         self.adv = np.zeros(self.step, dtype=np.float32)
         self.rewards = np.zeros(self.step, dtype=np.float32)
         self.values = np.zeros(self.step, dtype=np.float32)
         self.dones = np.zeros(self.step, dtype=np.float32)
+        self.extra_shapes = extra_shapes
+        self.extras = {
+                name: np.zeros((self.step, *shape), dtype=np.float32)
+                for name, shape in extra_shapes.items()
+                }
 
     @property
     def size(self) -> int:
@@ -53,11 +62,12 @@ class Buffer:
 
     def insert(self,
                state: np.ndarray,
-               action: int,
-               old_log_prob: float,
+               action: int | float | np.ndarray,
+               old_log_prob: float | np.ndarray,
                reward: float,
                value: float,
-               dones: int):
+               dones: int,
+               **kwargs):
         """Store a single timestep of rollout data.
 
         Args:
@@ -79,6 +89,13 @@ class Buffer:
         self.rewards[self.slice] = reward
         self.values[self.slice] = value
         self.dones[self.slice] = dones
+
+        for name, val in kwargs.items():
+            if name in self.extras:
+                self.extras[name][self.slice] = val
+            else:
+                raise ValueError("variable {name} don't exist in extras")
+
         self.slice += 1
 
     def insert_returns(self, returns: np.ndarray, adv: np.ndarray):
@@ -93,7 +110,7 @@ class Buffer:
         self.returns[:] = returns
         self.adv[:] = adv
 
-    def get_all(self) -> tuple:
+    def get_all(self, device: str = "cpu") -> tuple:
         """Convert buffer data to PyTorch tensors for the PPO update.
 
         Returns:
@@ -101,14 +118,19 @@ class Buffer:
             advantages, rewards, values, dones). States are float32,
             dones are long (integer), everything else is float32.
         """
-        return (torch.tensor(self.states, dtype=torch.float32),
-                torch.tensor(self.actions, dtype=torch.float32),
-                torch.tensor(self.old_log_probs, dtype=torch.float32),
-                torch.tensor(self.returns, dtype=torch.float32),
-                torch.tensor(self.adv, dtype=torch.float32),
-                torch.tensor(self.rewards, dtype=torch.float32),
-                torch.tensor(self.values, dtype=torch.float32),
-                torch.tensor(self.dones, dtype=torch.long))
+        core_tensor = (torch.as_tensor(self.states, dtype=torch.float32, device=device),
+                torch.as_tensor(self.actions, dtype=torch.float32, device=device),
+                torch.as_tensor(self.old_log_probs[:self.slice], dtype=torch.float32, device=device),
+                torch.as_tensor(self.returns, dtype=torch.float32, device=device),
+                torch.as_tensor(self.adv, dtype=torch.float32, device=device),
+                torch.as_tensor(self.rewards, dtype=torch.float32, device=device),
+                torch.as_tensor(self.values, dtype=torch.float32, device=device),
+                torch.as_tensor(self.dones, dtype=torch.long, device=device))
+        extra_tensor = {
+                name: torch.as_tensor(val, dtype=torch.float32, device=device)
+                for name, val in self.extras.items()
+                }
+        return *core_tensor, extra_tensor
 
     def clear(self):
         """Reset the buffer for reuse.

@@ -12,12 +12,11 @@ from .agent import BaseAgent
 from .algorithms.ppo.ppo import PPOTrainer
 from .common import Buffer
 from .config import TrainConfig
-from abc import ABC
 from .errors import EmptyBufferError
 from torch import Tensor
 
 
-class BaseTrain(ABC):
+class BaseTrain:
     """Abstract training loop coordinating agent, environment, and PPO.
 
     Subclasses must implement rollout_phase(), update_weights(), and
@@ -61,17 +60,18 @@ class BaseTrain(ABC):
             state: Initial observation to start the rollout from.
         """
         for _ in range(self.train_config.rollout_steps):
+            state_tensor = torch.tensor(state, dtype=torch.float32, device=self.train_config.device)
             with torch.inference_mode():
-                action_t, log_prob, _, value = self.agent.get_action(state)
+                action_t, log_prob, _, value = self.agent.get_action(state_tensor)
 
             # Convention: truncate = terminated (episode naturally ended)
             #             done = truncated (episode cut short by time limit)
-            next_state, reward, truncate, done, _ = self.env.step(action_t)
+            next_state, reward, truncate, done, _ = self.env.step(action_t.cpu().numpy())
             done_casted = 1 if done else 0
 
             self.buffer.insert(
                 state=state,
-                action=action_t.item(),
+                action=action_t,
                 old_log_prob=log_prob,
                 reward=reward,
                 value=value,
@@ -81,8 +81,9 @@ class BaseTrain(ABC):
 
             if done or truncate:
                 state = self.env.reset()
-            else:
-                state = next_state
+                break
+            
+            state = next_state
 
         with torch.inference_mode():
             _, _, _, next_value = self.agent.get_action(state)

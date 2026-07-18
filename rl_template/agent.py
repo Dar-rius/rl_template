@@ -62,9 +62,12 @@ class BaseAgent(ABC, nn.Module):
         Returns:
             Tuple of (action, log_prob, entropy, value).
         """
-        dist, value = self.get_distribution(state)
+        dist, value = self.get_distribution(state, **kwargs)
         if action is None:
             action = dist.sample()
         log_prob = dist.log_prob(action)
         dist_entropy = dist.entropy()
+        if log_prob.dim() > 1 and log_prob.shape[-1] > 1:
+            log_prob = log_prob.sum(dim=-1)
+            dist_entropy = dist_entropy.sum(dim=-1)
         return (action, log_prob, dist_entropy, value)

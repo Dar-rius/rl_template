@@ -106,7 +106,7 @@ class PPOTrainer:
         """
         self.lr_decay(self.ppo_config.lr, total_steps, step)
 
-        states, actions, old_log_probs, returns, adv, _, _, _ = memory.get_all()
+        states, actions, old_log_probs, returns, adv, _, _, _, _ = memory.get_all()
 
         advantages = (adv - adv.mean()) / (adv.std() + 1e-8)
         returns = (returns - returns.mean()) / (returns.std() + 1e-8)

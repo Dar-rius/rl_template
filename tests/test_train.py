@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 import pytest
 
+from rl_template.agent import BaseAgent
+from rl_template.env import BaseEnv
 from rl_template.train import BaseTrain
 from rl_template.common import Buffer
 from rl_template.config import TrainConfig, PPOConfig
@@ -13,7 +15,7 @@ from rl_template.algorithms.ppo.ppo import PPOTrainer
 from rl_template.errors import EmptyBufferError
 
 
-class MockAgent(nn.Module):
+class MockAgent(BaseAgent):
     """Minimal agent for testing BaseTrain."""
 
     def __init__(self, obs_dim=4, act_dim=2):
@@ -30,16 +32,7 @@ class MockAgent(nn.Module):
         dist = torch.distributions.Categorical(logits=logits)
         return dist, value.squeeze(-1)
 
-    def get_action(self, state, action=None, **kwargs):
-        dist, value = self.get_distribution(state)
-        if action is None:
-            action = dist.sample()
-        log_prob = dist.log_prob(action)
-        entropy = dist.entropy()
-        return action, log_prob, entropy, value
-
-
-class MockEnv:
+class MockEnv(BaseEnv):
     """Minimal environment for testing BaseTrain."""
 
     def __init__(self, obs_dim=4):
@@ -59,20 +52,6 @@ class MockEnv:
     def close(self):
         pass
 
-
-class SimpleTrain(BaseTrain):
-    """Minimal concrete training subclass for testing."""
-
-    def rollout_phase(self, state):
-        super().rollout_phase(state)
-
-    def update_weights(self, step):
-        super().update_weights(step)
-
-    def save_model(self):
-        super().save_model()
-
-
 class TestBaseTrainInit:
     """Verify BaseTrain stores all dependencies."""
 
@@ -84,7 +63,8 @@ class TestBaseTrainInit:
         cfg = TrainConfig(model_name="test", model_saved_path=str(tmp_path))
         ppo = PPOTrainer(agent, PPOConfig())
 
-        trainer = SimpleTrain(agent, env, buf, cfg, ppo)
+        #Check type
+        trainer = BaseTrain(agent, env, buf, cfg, ppo)
         assert trainer.agent is agent
         assert trainer.env is env
         assert trainer.buffer is buf
@@ -98,7 +78,7 @@ class TestBaseTrainInit:
         cfg = TrainConfig(model_name="test", model_saved_path=str(tmp_path))
         ppo = PPOTrainer(agent, PPOConfig())
 
-        trainer = SimpleTrain(agent, env, buf, cfg, ppo)
+        trainer = BaseTrain(agent, env, buf, cfg, ppo)
         assert trainer.last_value == 0.0
 
     def test_default_cumulative_reward(self, tmp_path):
@@ -108,7 +88,7 @@ class TestBaseTrainInit:
         cfg = TrainConfig(model_name="test", model_saved_path=str(tmp_path))
         ppo = PPOTrainer(agent, PPOConfig())
 
-        trainer = SimpleTrain(agent, env, buf, cfg, ppo)
+        trainer = BaseTrain(agent, env, buf, cfg, ppo)
         assert trainer.cumulative_reward == 0.0
 
 
@@ -122,7 +102,7 @@ class TestBaseTrainUpdateWeights:
         cfg = TrainConfig(model_name="test", model_saved_path=str(tmp_path))
         ppo = PPOTrainer(agent, PPOConfig())
 
-        trainer = SimpleTrain(agent, env, buf, cfg, ppo)
+        trainer = BaseTrain(agent, env, buf, cfg, ppo)
         with pytest.raises(EmptyBufferError):
             trainer.update_weights(step=0)
 
@@ -138,7 +118,7 @@ class TestBaseTrainSaveModel:
         cfg = TrainConfig(model_name="test", model_saved_path=save_dir)
         ppo = PPOTrainer(agent, PPOConfig())
 
-        trainer = SimpleTrain(agent, env, buf, cfg, ppo)
+        trainer = BaseTrain(agent, env, buf, cfg, ppo)
         trainer.save_model()
         assert os.path.exists(cfg.model_path)
 
@@ -150,7 +130,7 @@ class TestBaseTrainSaveModel:
         cfg = TrainConfig(model_name="test", model_saved_path=save_dir)
         ppo = PPOTrainer(agent, PPOConfig())
 
-        trainer = SimpleTrain(agent, env, buf, cfg, ppo)
+        trainer = BaseTrain(agent, env, buf, cfg, ppo)
         trainer.save_model()
 
         new_agent = MockAgent()
