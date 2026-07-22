@@ -68,7 +68,7 @@ class BaseTrain:
 
             # Convention: truncate = terminated (episode naturally ended)
             #             done = truncated (episode cut short by time limit)
-            next_state, reward, truncate, done, _ = self.env.step(action_np)
+            next_state, reward, done, truncate, _ = self.env.step(action_np)
             done_casted = 1 if done else 0
 
             self.buffer.insert(
@@ -80,10 +80,11 @@ class BaseTrain:
                 dones=done_casted,
             )
             self.cumulative_reward += reward
-            state = next_state
 
             if done or truncate:
-                break
+                state, _ = self.env.reset()
+            else:
+                state = next_state
 
         with torch.inference_mode():
             state_tensor = torch.tensor(state, dtype=torch.float32, device=self.train_config.device)
