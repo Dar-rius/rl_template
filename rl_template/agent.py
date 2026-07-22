@@ -6,6 +6,7 @@ policy/value interface for all RL agent implementations.
 
 import torch
 import torch.nn as nn
+import torch.distributions as dists
 from torch.distributions import Distribution
 from torch import Tensor
 from abc import ABC, abstractmethod
@@ -75,7 +76,17 @@ class BaseAgent(nn.Module, ABC):
             action = dist.sample()
         log_prob = dist.log_prob(action)
         dist_entropy = dist.entropy()
-        if log_prob.dim() > 0 and log_prob.shape[-1] > 1:
-            log_prob = log_prob.sum(dim=-1)
-            dist_entropy = dist_entropy.sum(dim=-1)
+
+        is_categorical = isinstance(dist, dists.Categorical)
+        # Gestion des cas particuliers (ex: distributions indépendantes enveloppant du Categorical ou du Normal)
+        if isinstance(dist, dists.Independent):
+            if isinstance(dist.base_dist, dists.Categorical):
+                is_categorical = True
+
+        if not is_categorical:
+            # Espace continu ou multi-dimensionnel indépendant : on somme les log_probs et entropies par échantillon
+            if log_prob.dim() > 1 and log_prob.shape[-1] > 1:
+                log_prob = log_prob.sum(dim=-1)
+            if dist_entropy.dim() > 1 and dist_entropy.shape[-1] > 1:
+                dist_entropy = dist_entropy.sum(dim=-1)
         return (action, log_prob, dist_entropy, value)
